@@ -31,7 +31,10 @@ InfectionDataForTest["是否颅内感染"] = True
 InfectionDataForTest.to_excel("InfectionDataForTest.xlsx")
 InfectionDataForTest.to_csv("InfectionDataForTest.csv")
 
-# 二者融合为一个用于假设检验的新表
-IngratedTableForTest = pd.concat([NoInfectionDataForTest, InfectionDataForTest], axis=0)
-IngratedTableForTest.to_excel("IngratedTableForTest.xlsx")
-IngratedTableForTest.to_csv("IngratedTableForTest.csv")
+# 二者按行列融合为两个用于假设检验的新表
+IngratedTableForTest1 = pd.concat([NoInfectionDataForTest, InfectionDataForTest], axis=0)
+IngratedTableForTest1.to_excel("IngratedTableForTest1.xlsx")
+IngratedTableForTest1.to_csv("IngratedTableForTest1.csv")
+IngratedTableForTest2 = pd.concat([NoInfectionDataForTest, InfectionDataForTest], axis=1)
+IngratedTableForTest2.to_excel("IngratedTableForTest2.xlsx")
+IngratedTableForTest2.to_csv("IngratedTableForTest2.csv")
