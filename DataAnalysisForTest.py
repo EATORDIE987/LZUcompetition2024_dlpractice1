@@ -1,6 +1,7 @@
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
+from scipy.stats import chi2_contingency
 
 # 去除重复指标数据
 Record = pd.read_excel("治疗过程记录.xlsx", header=1)
