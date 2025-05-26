@@ -9,6 +9,7 @@ Filter_NoRepeatData = Record.iloc[:, np.r_[0:25, 27:35]].drop_duplicates()
 Filter_NoRepeatData["是否诊断颅内感染"] = (
     Record.iloc[:, 4:15].eq("颅内感染").any(axis=1)
 )
+Filter_NoRepeatData.to_excel('NoRepeatedData.xlsx')
 
 # 未颅内感染患者数据（假设检验用）
 Filter_NoInfection = Filter_NoRepeatData[
