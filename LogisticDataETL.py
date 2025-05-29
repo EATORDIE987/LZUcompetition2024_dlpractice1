@@ -15,7 +15,7 @@ Record = pd.read_excel("治疗过程记录.xlsx", header=1)
 Record["是否患有颅内感染"] = Record.iloc[:, 4:15].eq("颅内感染").any(axis=1)
 # todo 过滤多余行
 Filtered_others = pd.concat(
-    [Record.iloc[:,0],Record.iloc[:, 28], Record.iloc[:, 30], Record.iloc[:, 34], Record.iloc[:, 35]],
+    [Record.iloc[:,0],Record.iloc[:, 28], Record.iloc[:, 29], Record.iloc[:, 34], Record.iloc[:, 35]],
     axis=1,
 )
 # todo 保存为下一步ETL存为文件
@@ -37,7 +37,7 @@ Filtered_OnePoint.to_excel("Filtered_OnePoint.xlsx")
 X = Filtered_OnePoint.pivot_table(
     index=['住院号', '报告日期'],  # 将两列作为列表传递给 index
     columns='项目名称',
-    values='定性结果',
+    values='定量结果',
     aggfunc='first' ,# 或者其他你需要的聚合函数
     sort=False
 )
@@ -56,9 +56,12 @@ for col in num_col:
         dataset_dataframe.groupby('是否患有颅内感染')[col].transform('mean')
     )
 for col in str_col:
+    dataset_dataframe[col] = dataset_dataframe[col].astype('Float32')
     dataset_dataframe[col] = dataset_dataframe[col].fillna(
         dataset_dataframe.groupby('是否患有颅内感染')[col].transform(get_mode_or_na)
     )
+dataset_dataframe['透明度']=dataset_dataframe['透明度']-242
+dataset_dataframe['蛋白定性']=dataset_dataframe['蛋白定性']-248
 dataset_dataframe.to_excel('dataset_fillna.xlsx')
 
 
