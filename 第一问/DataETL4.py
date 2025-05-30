@@ -7,7 +7,8 @@ from rpy2.robjects.packages import importr
 from rpy2.robjects import pandas2ri
 import sys
 
-# todo 本程序负责处理年龄，性别，住院天数，诊断结果和是否感染的关系
+# todo 本程序负责处理手术类型和是否感染的关系
+
 
 # ! 该函数用于把dataframe数值表格转化为R矩阵
 def Dataframe_To_Rmatrix(data):
@@ -42,108 +43,54 @@ def Generalized_FisherExactTest(data):
     # // return p_value
     return fisher_result
 
-
 Record = pd.read_excel("治疗过程记录.xlsx", header=1)
 # todo 加入列‘是否患有颅内感染’
 Record["是否患有颅内感染"] = Record.iloc[:, 4:15].eq("颅内感染").any(axis=1)
-Record.to_excel("addbool.xlsx")
-ProcessedData = Record.drop_duplicates(
+
+OprationData = Record.drop_duplicates(
     subset=[
         "住院号",
-        "性别",
-        "年龄",
-        "住院天数",
-        "主要诊断",
-        "其他诊断1",
-        "其他诊断2",
-        "其他诊断3",
-        "其他诊断4",
-        "其他诊断5",
-        "其他诊断6",
-        "其他诊断7",
-        "其他诊断8",
-        "其他诊断9",
-        "其他诊断10",
         "手术名称1",
         "麻醉方式1",
-        "手术持续时间（h）",
         "手术名称2",
         "麻醉方式2",
         "手术名称3",
         "麻醉方式3",
         "手术名称4",
         "麻醉方式4",
-        "手术持续时间4",
         "是否患有颅内感染",
     ],
     keep="first",
 )[
     [
-        "住院号",
-        "性别",
-        "年龄",
-        "住院天数",
-        "主要诊断",
-        "其他诊断1",
-        "其他诊断2",
-        "其他诊断3",
-        "其他诊断4",
-        "其他诊断5",
-        "其他诊断6",
-        "其他诊断7",
-        "其他诊断8",
-        "其他诊断9",
-        "其他诊断10",
         "手术名称1",
         "麻醉方式1",
-        "手术持续时间（h）",
         "手术名称2",
         "麻醉方式2",
         "手术名称3",
         "麻醉方式3",
         "手术名称4",
         "麻醉方式4",
-        "手术持续时间4",
-        "是否患有颅内感染",
-    ]
-]
-ProcessedData["年龄"] = (
-    ProcessedData["年龄"].str.replace("岁", "", regex=False).str.strip()
-)
-ProcessedData["年龄"] = pd.to_numeric(ProcessedData["年龄"], errors="coerce")
-ProcessedData.to_excel("ProcessedData.xlsx")
-
-DiagnoseData = ProcessedData[
-    [
-        "主要诊断",
-        "其他诊断1",
-        "其他诊断2",
-        "其他诊断3",
-        "其他诊断4",
-        "其他诊断5",
-        "其他诊断6",
-        "其他诊断7",
-        "其他诊断8",
-        "其他诊断9",
-        "其他诊断10",
         "是否患有颅内感染",
     ]
 ].copy()
-diagnosis_data=DiagnoseData.iloc[:,0:11]
-all_diagnoses =set()
-for col in diagnosis_data.columns:
-    # 清理空字符串和NaN值，并确保是字符串类型
-    valid_diagnoses = diagnosis_data[col].astype(str).str.strip()
-    valid_diagnoses = valid_diagnoses[valid_diagnoses.ne('') & valid_diagnoses.ne('nan') & valid_diagnoses.notna()]
-    all_diagnoses.update(valid_diagnoses.unique())
-unique_diagnoses = sorted(list(all_diagnoses))
+# // OprationData.to_excel('OprationTypeData.xlsx')
 
-print(f"提取到的不重复诊断类型共有 {len(unique_diagnoses)} 种: {unique_diagnoses}")
+OprationTypeData=OprationData.iloc[:,0:7]
+all_Operation =set()
+for col in OprationTypeData.columns:
+    # 清理空字符串和NaN值，并确保是字符串类型
+    valid_Opration = OprationTypeData[col].astype(str).str.strip()
+    valid_Opration = valid_Opration[valid_Opration.ne('') & valid_Opration.ne('nan') & valid_Opration.notna()]
+    all_Operation.update(valid_Opration.unique())
+unique_Opration = sorted(list(all_Operation))
+
+print(f"提取到的不重复手术或麻醉类型共有 {len(unique_Opration)} 种: {unique_Opration}")
 print("-" * 50)
 
 # --- 3. 为每种独特诊断创建列联表并进行卡方检验 ---
 p_value_lessthanalpha = [] # 用于存储结果
-for specific_diagnosis in unique_diagnoses:
+for specific_Opration in unique_Opration:
     # print(f"\n正在分析诊断: 【{specific_diagnosis}】")
 
     # 重要：如果当前分析的 specific_diagnosis 就是 "颅内感染" 本身，
@@ -151,30 +98,25 @@ for specific_diagnosis in unique_diagnoses:
     # 那么它们之间必然存在完美关联，卡方检验可能无意义或出错。
     # 你可以根据需要选择跳过对 "颅内感染" 本身的分析，
     # 因为你关注的是 *其他* 诊断与颅内感染的关系。
-    if specific_diagnosis == "颅内感染":
-        # print("跳过对 '颅内感染' 本身的分析，因为它直接定义了目标变量。")
-        # print("-" * 50)
-        continue
 
     # 3a. 创建临时指示列：标记哪些患者具有当前正在分析的 specific_diagnosis
     #     检查 diagnosis_data 的所有列中是否包含当前的 specific_diagnosis
-    series = DiagnoseData.astype(str).eq(specific_diagnosis).any(axis=1)
+    series = OprationData.astype(str).eq(specific_Opration).any(axis=1)
 
     # 3b. 构建列联表
     #     行: 是否患有 specific_diagnosis (True/False)
     #     列: 是否患有颅内感染_目标 (True/False)
-    contingency_table = pd.crosstab(series, DiagnoseData['是否患有颅内感染'])
+    contingency_table = pd.crosstab(series, OprationData['是否患有颅内感染'])
     fisher_result = Generalized_FisherExactTest(contingency_table)
     if fisher_result.rx2("p.value")[0]<=0.05:
-        print(specific_diagnosis,'\n')
+        print(specific_Opration,'\n')
         print("列联表:")
         print(contingency_table)
         print('p值=',fisher_result.rx2("p.value")[0])
         p_value_lessthanalpha.append({
-            '诊断': str(specific_diagnosis),
+            '诊断': str(specific_Opration),
             'P值': fisher_result.rx2("p.value")[0],
             '列联表': contingency_table,
         })
 
 print(p_value_lessthanalpha)
-
