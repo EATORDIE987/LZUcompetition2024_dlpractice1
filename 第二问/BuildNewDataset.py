@@ -30,6 +30,13 @@ cols_to_convert = merged_df.columns[9:15]
 for col in cols_to_convert:
     merged_df[col] = merged_df[col].astype(int)
 merged_df.to_excel("FinalDataset.xlsx")
+df=pd.read_excel("FinalDataset.xlsx")
+df.drop(['Unnamed: 0.1', 'Unnamed: 0', '_merge'], inplace=True,axis=1)
+col_data=df.pop('是否患有颅内感染')
+df['是否患有颅内感染']=col_data
+df.to_excel('FinalProcessData.xlsx')
+print(df.columns)
+
 
 # 检查合并后是否有因为右表（df_processed）列名与左表（df_processed2）除连接键外的其他列名重复而产生的 '_x', '_y' 后缀
 # 如果有，你可能需要处理这些重复列名，例如通过重命名或选择保留哪一个。
