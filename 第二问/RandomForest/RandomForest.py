@@ -7,9 +7,8 @@ from sklearn.model_selection import (
     cross_val_score,
     cross_val_predict,
 )  # 导入 cross_val_predict
-from sklearn.datasets import (
-    make_classification,
-)  # 用于生成示例数据集，方便演示 (如果需要独立运行此片段)
+from sklearn.metrics import roc_curve, auc # Import roc_curve and auc
+import matplotlib.pyplot as plt 
 
 df = pd.read_excel("FinalProcessData.xlsx")
 X = df.iloc[:, 3:24]
@@ -45,7 +44,7 @@ cv_splitter = StratifiedKFold(
 # 对于分类任务，常用的有: 'accuracy', 'precision_macro', 'recall_macro', 'f1_macro', 'roc_auc_ovr' 等。
 # 对于回归任务，常用的有: 'neg_mean_squared_error', 'r2', 'neg_mean_absolute_error' 等。
 # (注意回归指标中的 'neg_' 前缀，因为 cross_val_score 试图最大化分数，所以误差指标取负值)
-scoring_metric = "accuracy"  # 以准确率为例
+scoring_metric ='accuracy'  # 以准确率为例
 # cross_val_score 函数会自动处理数据的分割、模型的训练和评估过程。
 # 它可以直接接受 Pandas DataFrame 和 Series 作为输入 X 和 y。
 scores = cross_val_score(
@@ -78,10 +77,14 @@ oof_predictions = cross_val_predict(
 )
 
 print(f"已为全部 {len(oof_predictions)} 个样本生成折外预测。")
-PREresult = pd.DataFrame(oof_predictions)
-PREresult = PREresult.iloc[:, 1]
-result1 = pd.concat([df, PREresult], axis=1)
-result1.rename(columns={1: "颅内感染风险"}, inplace=True)
+PREresult_df = pd.DataFrame(oof_predictions)
+PREresult = PREresult_df.iloc[:, 1]
+
+# 修正 PREresult 的处理，使其能够被正确地重命名和使用
+temp_df_for_concat = pd.DataFrame({'颅内感染风险': PREresult.values}, index=df.index)
+result1 = pd.concat([df, temp_df_for_concat], axis=1)
+# 此时 result1 中就有了名为 "颅内感染风险" 的OOF预测概率列，后续代码可以按预期工作
+
 result2 = result1[["住院号", "颅内感染风险"]].copy()
 
 # 可以选平均数，改成.mean()
@@ -102,3 +105,33 @@ compare.to_excel("compare.xlsx")
 # print(loss.sum()/len(loss))
 # loss=abs(compare['颅内感染风险'].round().astype('int')-compare['是否患有颅内感染'].astype('int'))
 # print(1-loss.sum()/len(loss))
+
+# ---绘制ROC曲线---
+# 注意：以下ROC曲线是基于模型对原始数据集中每个独立样本的
+# 袋外（OOF）预测概率（PREresult）和原始真实标签（Y）生成的。
+# 这直接反映了模型在进行任何后续按“住院号”聚合之前，在交叉验证中的原始预测性能。
+
+# Y 是原始的真实标签 Series
+# PREresult 是对应样本的类别为1的预测概率 Series
+y_true_for_roc = Y
+y_scores_for_roc = PREresult # PREresult 已是阳性类别的概率 Series
+
+# 计算ROC曲线的各个点和AUC值
+fpr, tpr, thresholds = roc_curve(y_true_for_roc, y_scores_for_roc)
+roc_auc_value = auc(fpr, tpr)
+
+# 开始绘图
+plt.figure(figsize=(9, 7)) # 设置图像大小
+plt.plot(fpr, tpr, color='dodgerblue', lw=2, label=f'样本级别 OOF ROC (AUC = {roc_auc_value:.2f})')
+plt.plot([0, 1], [0, 1], color='dimgray', lw=2, linestyle='--') # 对角线（随机猜测）
+
+# 设置图像属性
+plt.xlim([0.0, 1.0])
+plt.ylim([0.0, 1.05]) # y轴上限略大于1，确保曲线完全可见
+plt.xlabel('False Positive Rate')
+plt.ylabel('True Positive Rate')
+plt.title('ROC(OOF)')
+plt.legend(loc="lower right") # 图例位置
+plt.grid(True, linestyle=':', alpha=0.6) # 添加网格
+plt.savefig("roc_curve.jpg", format='jpg', dpi=300, bbox_inches='tight')
+plt.show() # 显示图像
