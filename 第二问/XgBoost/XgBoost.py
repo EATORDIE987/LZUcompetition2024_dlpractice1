@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 import xgboost as xgb
 import matplotlib.pyplot as plt
-from sklearn.metrics import roc_curve # Ensure this is imported
+from sklearn.metrics import roc_curve  # Ensure this is imported
 from sklearn.model_selection import StratifiedKFold
 from sklearn.metrics import (
     log_loss,
@@ -157,6 +157,30 @@ print(f"\n整体袋外 (OOF) LogLoss: {oof_overall_loss:.4f}")
 print(f"整体袋外 (OOF) AUC: {oof_overall_auc:.4f}")
 print(f"整体袋外 (OOF) 准确率: {oof_overall_accuracy:.4f}")
 
+temp_df_for_concat = pd.DataFrame({"颅内感染风险": oof_preds_proba}, index=data.index)
+result1 = pd.concat([data, temp_df_for_concat], axis=1)
+# 此时 result1 中就有了名为 "颅内感染风险" 的OOF预测概率列，后续代码可以按预期工作
+
+result2 = result1[["住院号", "颅内感染风险"]].copy()
+
+# 可以选平均数，改成.mean()
+median_table = result2.groupby("住院号", as_index=False, sort=False)[
+    "颅内感染风险"
+].median()
+
+median_table.to_excel("FinalResult.xlsx")
+
+df2 = pd.read_excel("ProcessedData.xlsx")
+df2 = df2[["住院号", "是否患有颅内感染"]]
+compare = pd.concat([median_table, df2], axis=1)
+compare.to_excel("compare.xlsx")
+loss = abs(
+    compare["颅内感染风险"].round().astype("int")
+    - compare["是否患有颅内感染"].astype("int")
+)
+print("取中位数后预测准确率：", 1 - loss.sum() / len(loss))
+
+
 # --- 新增绘制ROC曲线的代码 ---
 print("\n----- 正在绘制ROC曲线 -----")
 
@@ -167,22 +191,28 @@ print("\n----- 正在绘制ROC曲线 -----")
 fpr, tpr, thresholds = roc_curve(y, oof_preds_proba)
 
 # 开始绘图
-plt.figure(figsize=(8, 6)) # 设置图像大小
+plt.figure(figsize=(8, 6))  # 设置图像大小
 
 # 绘制 ROC 曲线
 # 使用 OOF AUC 作为图例中的 AUC 值
-plt.plot(fpr, tpr, color='darkorange', lw=2, label=f'OOF ROC curve (area = {oof_overall_auc:.2f})')
+plt.plot(
+    fpr,
+    tpr,
+    color="darkorange",
+    lw=2,
+    label=f"OOF ROC curve (area = {oof_overall_auc:.2f})",
+)
 
 # 绘制随机猜测的对角线
-plt.plot([0, 1], [0, 1], color='navy', lw=2, linestyle='--')
+plt.plot([0, 1], [0, 1], color="navy", lw=2, linestyle="--")
 
 # 设置坐标轴范围和标签
 plt.xlim([0.0, 1.0])
-plt.ylim([0.0, 1.05]) # y轴略微超出1.0，以确保曲线顶部可见
-plt.xlabel('False Positive Rate (1 - Specificity)') # 横轴：假阳性率
-plt.ylabel('True Positive Rate (Sensitivity)')    # 纵轴：真阳性率
-plt.title('Receiver Operating Characteristic (ROC) - OOF Predictions') # 标题
-plt.legend(loc="lower right") # 图例位置
-plt.grid(True) # 显示网格
-plt.savefig("roc_curve.jpg", format='jpg', dpi=300, bbox_inches='tight')
-plt.show() # 显示图像
+plt.ylim([0.0, 1.05])  # y轴略微超出1.0，以确保曲线顶部可见
+plt.xlabel("False Positive Rate (1 - Specificity)")  # 横轴：假阳性率
+plt.ylabel("True Positive Rate (Sensitivity)")  # 纵轴：真阳性率
+plt.title("Receiver Operating Characteristic (ROC) - OOF Predictions")  # 标题
+plt.legend(loc="lower right")  # 图例位置
+plt.grid(True)  # 显示网格
+plt.savefig("roc_curve.jpg", format="jpg", dpi=300, bbox_inches="tight")
+plt.show()  # 显示图像
