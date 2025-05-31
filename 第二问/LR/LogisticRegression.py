@@ -3,8 +3,9 @@ import pandas as pd
 import torch
 from torch import nn
 from torch.utils import data
-import matplotlib.pyplot as plt # 新增
-from sklearn.metrics import roc_curve, auc # 新增
+import matplotlib.pyplot as plt  # 新增
+from sklearn.metrics import roc_curve, auc  # 新增
+
 
 # * ---------------------------------- 获取ROC曲线所需数据 ----------------------------------
 def get_roc_data(net, data_iter):
@@ -15,10 +16,11 @@ def get_roc_data(net, data_iter):
     with torch.no_grad():
         for X_batch, y_batch in data_iter:
             outputs = net(X_batch)
-            scores = outputs[:, 1] # 假设类别1是正类别
+            scores = outputs[:, 1]  # 假设类别1是正类别
             all_true_labels.extend(y_batch.cpu().numpy())
             all_pred_scores.extend(scores.cpu().numpy())
     return np.array(all_true_labels), np.array(all_pred_scores)
+
 
 # * ---------------------------------- 定义累加器的类 ----------------------------------
 # ! 很重要的累加器，可用于别的程序
@@ -57,6 +59,7 @@ class Accumulator:  # @save
         # ? 直接返回 self.data 列表中索引为 idx 的元素。
         # ? 例如，如果 acc 是一个 Accumulator 对象，acc[0] 就会调用这个方法并返回 self.data[0]。
         return self.data[idx]
+
 
 # * ---------------------------------- 定义精确率函数 ----------------------------------
 # todo 计算精确率
@@ -108,8 +111,32 @@ def evaluate_accuracy(net, data_iter):
             metric.add(accuracy(net(X), y), y.numel())
     return metric[0] / metric[1]
 
-dataset_dataframe=pd.read_excel('dataset_fillna.xlsx')
-feature_columns = ['葡萄糖[Glu]', '微量蛋白[MTP]', '蛋白定性', '透明度', '白细胞计数', '多个核细胞百分比', '氯[CL]']
+
+dataset_dataframe = pd.read_excel("FinalProcessData.xlsx")
+feature_columns = [
+    "葡萄糖[Glu]",
+    "微量蛋白[MTP]",
+    "白细胞计数",
+    "多个核细胞百分比",
+    "氯[CL]",
+    "透明度_微混",
+    "透明度_混浊",
+    "透明度_清亮",
+    "蛋白定性_弱阳性(±)",
+    "蛋白定性_阳性(+)",
+    "蛋白定性_阴性(-)",
+    "诊断_外展神经损伤",
+    "诊断_脑实质出血继发蛛网膜下腔出血",
+    "诊断_脑室腹腔分流管置入感染",
+    "诊断_脑积水",
+    "诊断_面肌痉挛",
+    "诊断_额叶交界性肿瘤",
+    "手术_侧脑室脑池造口引流术",
+    "手术_内镜下面神经微血管减压术",
+    "手术_脑室Ommaya泵置入术",
+    "手术_脑室分流管去除术",
+]
+
 lables_columns=['是否患有颅内感染']
 X_df = dataset_dataframe[feature_columns]
 Y_series = dataset_dataframe[lables_columns]
@@ -122,23 +149,23 @@ train_ratio = 0.8  # 80% 作为训练集
 test_ratio = 0.2   # 20% 作为测试集
 split_ratios = [train_ratio, test_ratio]
 
-torch.manual_seed(888) # 设置随机种子
+torch.manual_seed(50) # 设置随机种子
 train_dataset, test_dataset = data.random_split(dataset, split_ratios)
 
-batch_size=64
+batch_size=32
 train_iter=data.DataLoader(train_dataset,batch_size,shuffle=True,num_workers=4)
 test_iter=data.DataLoader(test_dataset,batch_size,shuffle=False,num_workers=4)
 
-net=nn.Sequential(nn.Linear(7,2))
+net=nn.Sequential(nn.Linear(21,2))
 net[0].weight.data.normal_(0,0.01)
 net[0].bias.data.fill_(0)
 loss=nn.CrossEntropyLoss(reduction='mean')
-lr = 0.007
+lr = 0.1
 
 trainer=torch.optim.SGD(net.parameters(),lr)
-scheduler=torch.optim.lr_scheduler.StepLR(trainer,step_size=10,gamma=0.02)
+scheduler=torch.optim.lr_scheduler.StepLR(trainer,step_size=6,gamma=0.1)
 
-num_epochs=14
+num_epochs=18
 for epoch in range(num_epochs):
     net.train()
     for x,y in train_iter:
